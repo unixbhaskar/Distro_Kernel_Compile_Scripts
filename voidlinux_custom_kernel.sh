@@ -26,7 +26,7 @@ kernel=$(curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=st
 
 printf "${Bright}${Cyan} $kernel ${NOCOLOR} \n\n"
 
-
+#standard way of installing distro kernel
 printf "\n\n ${Reverse}${Bright}${Green} ################ Updating the KERNEL.... ################# ${NOCOLOR} \n\n"
 
   xbps-install -S --yes liux5.2
