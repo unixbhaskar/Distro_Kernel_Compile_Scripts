@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #This script information based on this wiki page : https://wiki.archlinux.org/index.php/Kernels/Arch_Build_System
 
