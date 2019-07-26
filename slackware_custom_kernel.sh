@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 EFIBOOTPATH=/boot/efi/loader/entries/
 
