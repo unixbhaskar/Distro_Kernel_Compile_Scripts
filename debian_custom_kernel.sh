@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 source /home/bhaskar/colors.sh
 NOCOLOR="\033[0m"
 #DT=`date '+%d%m%Y'`
