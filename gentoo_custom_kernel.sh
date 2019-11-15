@@ -1,10 +1,10 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 EFIBOOTPATH=/boot/efi/loader/entries
 source $HOME/colors.sh
 source $HOME/spinner.sh
 NOCOLOR="\033[0m"
-build_dir=$HOME/latest_kernel_build_`hostname`_`date '+%F'`
+build_dir=/var/tmp/kernel/latest_kernel_build_`hostname`_`date '+%F'`
 get_kernel=/usr/local/bin/secure_kernel_tarball 
 
 printf "${Reverse}Lets build the new kernel${NOCOLOR}  ..... \n\n"
@@ -12,10 +12,13 @@ printf "${Reverse}Lets build the new kernel${NOCOLOR}  ..... \n\n"
 printf "Hostname: %s\nDate    : %s\nUptime  :%s\n\n"  "$(hostname -s)" "$(date)" "$(uptime)"
 
 printf " Check the latest stable kernel version from ${Bright}${Blue}kernel.org${NOCOLOR} \n\n"
-
 #kernel=`curl -sL https://www.kernel.org/finger_banner | grep '4.18' | awk -F: '{gsub(/ /,"", $0); print $2}'`
 kernel=$(curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.3) 
 printf "${Bright}${Green}$kernel${NOCOLOR} \n"
+
+printf "\n Pre-flight check...basic build tools are in the system for kernel build...\n"
+
+ver_linux
 
 if [[ ! -d $build_dir ]];then
    mkdir -p $build_dir
@@ -61,7 +64,7 @@ unxz linux-$kernel.tar.xz
 
 printf "${Bright}${Cyan} Untar the kernel${NOCOLOR} ...\n\n"
 
-tar -xvf linux-$kernel.tar
+tar -xvf linux-$kernel.tar 
 
 
 if [[ $? -eq 0 ]]; then
@@ -88,14 +91,14 @@ zcat /proc/config.gz > .config
 printf "${Bright}${Green} Lets do the config ...run make olddefconfig ${NOCOLOR}\n\n\n"
 printf "\n\n${Bright}${Green} make olddefconfig ${NOCOLOR}\n\n\n"
 
-make olddefconfig
+make  ARCH=x86_64 olddefconfig 
 
 printf "${Bright}${Cyan} Then make it ${NOCOLOR} ...\n\n\n"
 
 printf "\n\n ${Bright}${PowderBlue} time make -j `getconf _NPROCESSORS_ONLN` LOCALVERSION=-`hostname`${NOCOLOR} \n\n"
 
 
-/usr/bin/time -f "\t\n\n Elapsed Time : %E \n\n"  make -j `getconf _NPROCESSORS_ONLN` LOCALVERSION=-`hostname`
+/usr/bin/time -f "\t\n\n Elapsed Time : %E \n\n"  make ARCH=x86_64 -j `getconf _NPROCESSORS_ONLN` LOCALVERSION=-`hostname` | /usr/bin/ts 
 
 
 if [ $? == 0 ]
@@ -113,13 +116,13 @@ printf "${Bright}${Yellow} Installing the modules${NOCOLOR} ...\n\n"
 
 printf "\n\n${Bright}${Magenta} make modules_install${NOCOLOR}\n\n\n"
 
-make modules_install
+make  modules_install |  /usr/bin/ts 
 
 printf "${Bright}${LimeYEllow} Copying the build kernel to boot directory${NOCOLOR} \n\n"
 
 printf "${Bright}${Green} make install${NOCOLOR}\n\n\n"
 
-make install
+make install  
 
 
 
