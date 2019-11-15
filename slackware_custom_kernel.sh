@@ -2,11 +2,11 @@
 
 EFIBOOTPATH=/boot/efi/loader/entries/
 
-source /home/bhaskar/colors.sh
-source /home/bhaskar/spinner.sh
+source $HOME/colors.sh
+source $HOME/spinner.sh
 NOCOLOR="\033[0m"
 
-build_dir="/home/bhaskar/latest_kernel_build_$(hostname)_$(date '+%F')"
+build_dir="$HOME/latest_kernel_build_$(hostname)_$(date '+%F')"
 
 get_kernel=/usr/local/bin/secure_kernel_tarball
 
@@ -21,7 +21,7 @@ printf "Hostname: %s\nDate    : %s\nUptime  :%s\n\n"  "$(hostname -s)" "$(date)"
 printf "\n\n Check the latest stable kernel version from ${Bright}${Blue}kernel.org${NOCOLOR} \n\n"
 
 #kernel=`curl -sL https://www.kernel.org/finger_banner | grep '4.18' | awk -F: '{gsub(/ /,"", $0); print $2}'`
-kernel=`curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.2`
+kernel=`curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.3`
 printf "${Bright}${Green}$kernel${NOCOLOR} \n\n"
 
 if [[ ! -d $build_dir ]];then
