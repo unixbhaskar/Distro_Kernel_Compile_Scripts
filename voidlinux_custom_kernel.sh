@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source /home/bhaskar/colors.sh
+source $HOME/colors.sh
 TM="/usr/bin/time -f"
 NOCOLOR="\033[m"
 EFIBOOTDIR=/boot/efi/EFI/voidlinux/
@@ -22,14 +22,14 @@ printf "${Bright}${Red}Not enough space...aborting! ${NOCOLOR} \n\n\n\n"
 exit 1
 fi
 
-kernel=$(curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.2)
+kernel=$(curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.3)
 
 printf "${Bright}${Cyan} $kernel ${NOCOLOR} \n\n"
 
 #standard way of installing distro kernel
 printf "\n\n ${Reverse}${Bright}${Green} ################ Updating the KERNEL.... ################# ${NOCOLOR} \n\n"
 
-  xbps-install -S --yes liux5.2
+  xbps-install -S --yes liux5.3
 
 
 printf "${Bright}${Green} Fix the boot entry ....${NOCOLOR} \n\n"
