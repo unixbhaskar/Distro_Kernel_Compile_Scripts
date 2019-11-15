@@ -6,8 +6,8 @@ NOCOLOR="\033[0m"
 EFIBOOTDIR=/boot/efi/EFI/ArchLinux
 DT=$(date '+%d%m%Y')
 EFIBOOTENTRY=/boot/efi/loader/entries
-source /home/bhaskar/colors.sh
-build_dir=/home/bhaskar/latest_kernel_$(hostname)_$DT
+source $HOME/colors.sh
+build_dir=$HOME/latest_kernel_$(hostname)_$DT
 TM="/usr/bin/time -f"
 
 printf "${Bright}${Red}This script is running to autome the custom/latest kernel build process...have patience${NOCOLOR} \n\n\n"
@@ -17,7 +17,7 @@ printf "Hostname: %s\nDate    : %s\nUptime  :%s\n\n"  "$(hostname -s)" "$(date)"
 
 printf "Get the latest kernel version from ${Blue}kernel.org \n\n\n"
 
-kernel=$(curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.2)
+kernel=$(curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.3)
 printf "${Bright}${GREEN}$kernel${NOCOLOR} \n"
 
 printf "Create a directory to hold and download the latest kernel from ${Blue}kernel.org${NOCOLOR} \n\n\n"
@@ -80,7 +80,6 @@ sed -i '20i \"$_srcname::https://git.archlinux.org/linux.git/snapshot/\$_srcver.
 
 sed -i 's/#make oldconfig/make olddefconfig/' PKGBUILD
 
-sed -i '171d;172d' PKGBUILD
 
 printf "As we have change the PKGBUILD file ,we need to generate the new ${Magenta}CHECKSUM the file .... ${NOCOLOR} \n\n\n"
 
