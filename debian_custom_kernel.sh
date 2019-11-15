@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 source $HOME/colors.sh
 NOCOLOR="\033[0m"
 #DT=`date '+%d%m%Y'`
@@ -19,7 +19,6 @@ cd $BASEPATH
 printf "Hostname: %s\nDate    : %s\nUptime  :%s\n\n"  "$(hostname -s)" "$(date)" "$(uptime)"
 
 printf " Check the latest stable kernel version from ${Bright}${Blue}kernel.org${NOCOLOR} \n\n"
-
 #kernel=`curl -sL https://www.kernel.org/finger_banner | grep '4.18' | awk -F: '{gsub(/ /,"", $0); print $2}'`
 kernel=`curl -s https://www.kernel.org/ | grep -A1 'stable' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.3` 
 printf "${Bright}${Green}$kernel${NOCOLOR}\n\n"
@@ -47,7 +46,7 @@ eval ${get_kernel} ${kernel}
 
 printf "${Bright}${LimeYellow}Decompress the kernel source ${NOCOLOR}..\n\n"
 
-tar -xJvf linux-$kernel.tar.xz
+tar -xJvf linux-$kernel.tar.xz | /usr/local/bin/lolcat
 
 #printf "${Bright}${Magenta}Verify the GPG signature on the kernel file${NOCOLOR}...\n\n"
 
@@ -70,7 +69,7 @@ cp -v /boot/config-`uname -r` .config
 
 printf "${Bright}${Blue}Run make olddefconfig on it ${NOCOLOR}....\n\n"
 
-make olddefconfig
+make olddefconfig  | /usr/local/bin/lolcat
 
 
 printf "${Bright}${Red}Taking away faulty option for custom kernel build${NOCOLOR}..\n\n"
@@ -91,7 +90,7 @@ scripts/config --disable DEBUG_INFO
 printf " \_ ${Green}Done${NOCOLOR}\n\n"
 
 
-/usr/bin/time -f "\n\n\tTime Elapsed: %E\n\n"  fakeroot make-kpkg -j `getconf _NPROCESSORS_ONLN`  --initrd --append-to-version=-`hostname` kernel_image kernel_headers
+/usr/bin/time -f "\n\n\tTime Elapsed: %E\n\n" unbuffer  fakeroot make-kpkg -j `getconf _NPROCESSORS_ONLN`  --initrd --append-to-version=-`hostname` kernel_image kernel_headers | /usr/bin/ts | /usr/local/bin/lolcat
 
 
 
