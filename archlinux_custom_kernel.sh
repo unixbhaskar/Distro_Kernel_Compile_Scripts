@@ -6,8 +6,8 @@ NOCOLOR="\033[0m"
 EFIBOOTDIR=/boot/efi/EFI/ArchLinux
 DT=$(date '+%d%m%Y')
 EFIBOOTENTRY=/boot/efi/loader/entries
-source $HOME/colors.sh
-build_dir=$HOME/latest_kernel_$(hostname)_$DT
+source /home/bhaskar/colors.sh
+build_dir=/home/bhaskar/latest_kernel_$(hostname)_$DT
 TM="/usr/bin/time -f"
 
 printf "${Bright}${Red}This script is running to autome the custom/latest kernel build process...have patience${NOCOLOR} \n\n\n"
