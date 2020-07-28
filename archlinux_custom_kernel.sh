@@ -9,6 +9,7 @@ EFIBOOTENTRY=/boot/efi/loader/entries
 source /home/bhaskar/colors.sh
 build_dir=/home/bhaskar/latest_kernel_$(hostname)_$DT
 TM="/usr/bin/time -f"
+#MAKE="make ARCH=x86_64 -j $(getconf _NPROCESSORS_ONLN)"
 
 printf "${Bright}${Red}This script is running to autome the custom/latest kernel build process...have patience${NOCOLOR} \n\n\n"
 
@@ -16,7 +17,7 @@ printf "Hostname: %s\nDate    : %s\nUptime  :%s\n\n"  "$(hostname -s)" "$(date)"
 
 
 printf "Get the latest kernel version from ${Blue}kernel.org \n\n\n"
-kernel=$(curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.3)
+kernel=$(curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.7)
 printf "${Bright}${GREEN}$kernel${NOCOLOR} \n"
 
 printf "Create a directory to hold and download the latest kernel from ${Blue}kernel.org${NOCOLOR} \n\n\n"
@@ -64,30 +65,26 @@ sed -i "s/$(echo $pkgver)/pkgver=$(echo $kernel) /" PKGBUILD
 
 sed -i '6d' PKGBUILD
 sed -i '6i _srcver=${pkgver%%%.*}-arch1 '  PKGBUILD
-sed -i '7d' PKGBUILD
 #cn=$(echo $kernel | cut -d"." -f1-2)
-
-sed -i '10i _srcname=${pkgver%%%.*}-arch1'  PKGBUILD
+sed -i '17d' PKGBUILD
+sed -i '17i _srcname=${pkgver%%%.*}-arch1'  PKGBUILD
 
 #fixed_url="\"$_srcname::git+https://git.archlinux.org/linux.git?signed#tag=v$_srcver\""
 #actual_url="\"\$_srcname::https://git.archlinux.org/linux.git/snapshot/\$_srcver.tar.xz\""
-sed -i '14d' PKGBUILD
-sed -i '16d' PKGBUILD
-sed -i '17d' PKGBUILD
-sed -i '18i \"$_srcname::https://git.archlinux.org/linux.git/snapshot/\$_srcver.tar.gz\"' PKGBUILD
-sed -i '28d' PKGBUILD
-sed -i '28i export KBUILD_BUILD_HOST=Bhaskar_ThinkPad_x250' PKGBUILD
+sed -i '19d' PKGBUILD
+sed -i '19i \"$_srcname::https://git.archlinux.org/linux.git/snapshot/\$_srcver.tar.gz\"' PKGBUILD
+sed -i '32d' PKGBUILD
+sed -i '32i export KBUILD_BUILD_HOST=Bhaskar_ThinkPad_x250' PKGBUILD
 #sed -i  "s/$(echo $fixed_url)/$(echo $actual_url) /" PKGBUILD
-
-#patch_version=$(grep "pkgver=" PKGBUILD)
+sed -i '33d' PKGBUILD
+sed -i '33i export KBUILD_BUILD_USER=Bhaskar' PKGBUILD 
 
 #sed -i "s/$(echo $patch_version)/pkgver=$(echo $kernel) /" PKGBUILD
 
 sed -i 's/#make oldconfig/make olddefconfig/' PKGBUILD
-sed -i '59d' PKGBUILD
-sed -i '59i make -j4 bzImage modules htmldocs' PKGBUILD
-
-
+sed -i '63d' PKGBUILD
+sed -i '63i make V=1 ARCH=x86_64 -j4  bzImage modules htmldocs' PKGBUILD
+sed -i '64d' PKGBUILD
 printf "As we have change the PKGBUILD file ,we need to generate the new ${Magenta}CHECKSUM the file .... ${NOCOLOR} \n\n\n"
 
 #makepkg -g 
@@ -97,8 +94,9 @@ updpkgsums
 
 printf "\n\n\n Lets do the ${Bright}${Green}compiling now ${NOCOLOR} ....\n\n\n"
 
-$TM "\t\n\n Elapsed Time : %E \n\n"  unbuffer makepkg -s  |  /usr/bin/ts 
+$TM "\t\n\n Elapsed Time : %E \n\n" makepkg -s   
 
+/usr/bin/notify-send -u critical 'Kernel building done'
 
 printf "Install the generated ${PowderBlue}headers,${PowderBlue}kernel and ${PowderBlue}doc packages with pacman .. ${NOCOLOR} \n\n\n"
 
