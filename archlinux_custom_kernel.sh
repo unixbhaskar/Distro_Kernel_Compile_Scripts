@@ -17,7 +17,7 @@ printf "Hostname: %s\nDate    : %s\nUptime  :%s\n\n"  "$(hostname -s)" "$(date)"
 
 
 printf "Get the latest kernel version from ${Blue}kernel.org \n\n\n"
-kernel=$(curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.7)
+kernel=$(curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.10)
 printf "${Bright}${GREEN}$kernel${NOCOLOR} \n"
 
 printf "Create a directory to hold and download the latest kernel from ${Blue}kernel.org${NOCOLOR} \n\n\n"
@@ -73,39 +73,40 @@ sed -i '17i _srcname=${pkgver%%%.*}-arch1'  PKGBUILD
 #actual_url="\"\$_srcname::https://git.archlinux.org/linux.git/snapshot/\$_srcver.tar.xz\""
 sed -i '19d' PKGBUILD
 sed -i '19i \"$_srcname::https://git.archlinux.org/linux.git/snapshot/\$_srcver.tar.gz\"' PKGBUILD
-sed -i '32d' PKGBUILD
-sed -i '32i export KBUILD_BUILD_HOST=Bhaskar_ThinkPad_x250' PKGBUILD
+sed -i '30d' PKGBUILD
+sed -i '30i export KBUILD_BUILD_HOST=Bhaskar_ThinkPad_x250' PKGBUILD
 #sed -i  "s/$(echo $fixed_url)/$(echo $actual_url) /" PKGBUILD
-sed -i '33d' PKGBUILD
-sed -i '33i export KBUILD_BUILD_USER=Bhaskar' PKGBUILD 
+sed -i '31d' PKGBUILD
+sed -i '31i export KBUILD_BUILD_USER=Bhaskar' PKGBUILD
 
 #sed -i "s/$(echo $patch_version)/pkgver=$(echo $kernel) /" PKGBUILD
 
 sed -i 's/#make oldconfig/make olddefconfig/' PKGBUILD
-sed -i '63d' PKGBUILD
-sed -i '63i make V=1 ARCH=x86_64 -j4  bzImage modules htmldocs' PKGBUILD
-sed -i '64d' PKGBUILD
+sed -i '61d' PKGBUILD
+sed -i '61i make V=1 ARCH=x86_64 -j4  bzImage modules htmlocs' PKGBUILD
+sed -i '62d' PKGBUILD 
+
 printf "As we have change the PKGBUILD file ,we need to generate the new ${Magenta}CHECKSUM the file .... ${NOCOLOR} \n\n\n"
 
-#makepkg -g 
+#makepkg -g
 
 updpkgsums
 
 
 printf "\n\n\n Lets do the ${Bright}${Green}compiling now ${NOCOLOR} ....\n\n\n"
 
-$TM "\t\n\n Elapsed Time : %E \n\n" makepkg -s   
+$TM "\t\n\n Elapsed Time : %E \n\n" makepkg -s
 
 /usr/bin/notify-send -u critical 'Kernel building done'
 
 printf "Install the generated ${PowderBlue}headers,${PowderBlue}kernel and ${PowderBlue}doc packages with pacman .. ${NOCOLOR} \n\n\n"
 
 
-sudo pacman -U  --noconfirm $(hostname)-$kernel-$kernel-1-x86_64.pkg.tar.xz  
-                             
+sudo pacman -U  --noconfirm $(hostname)-$kernel-$kernel-1-x86_64.pkg.tar.xz
+
 sudo pacman -U --noconfirm $(hostname)-$kernel-headers-$kernel-1-x86_64.pkg.tar.xz
 
-sudo pacman -U  --noconfirm $(hostname)-$kernel-docs-$kernel-1-x86_64.pkg.tar.xz 
+sudo pacman -U  --noconfirm $(hostname)-$kernel-docs-$kernel-1-x86_64.pkg.tar.xz
 
 
 printf "\n\n\n Done..now copy over the image to ${Yellow}EFI dir..${NOCOLOR} \n\n\n\n"
@@ -116,14 +117,14 @@ sudo cp -v /boot/initramfs-$(hostname)-$kernel.img $EFIBOOTDIR
 
 printf "${Bright}${Blue}Fixed the boot entry now ${NOCOLOR}...\n\n\n\n"
 
-echo "title ArchLinux" | sudo tee  $EFIBOOTENTRY/ArchLinux.conf 
+echo "title ArchLinux" | sudo tee  $EFIBOOTENTRY/ArchLinux.conf
 echo "linux /EFI/ArchLinux/vmlinuz-$(hostname)-$kernel" | sudo tee -a $EFIBOOTENTRY/ArchLinux.conf
 echo "initrd /EFI/ArchLinux/initramfs-$(hostname)-$kernel.img" | sudo tee -a $EFIBOOTENTRY/ArchLinux.conf
-echo "options root=PARTUUID=e79c9191-3302-4dc8-a62a-5cc22d266643  loglevel=3  systemd.show_status=true rw" | sudo tee -a $EFIBOOTENTRY/ArchLinux.conf 
+echo "options root=PARTUUID=9e3d2f9a-4846-3049-97fc-b5e5c61820ae  loglevel=3  systemd.show_status=true rw" | sudo tee -a $EFIBOOTENTRY/ArchLinux.conf
 
 printf "\n\n\n ${Bright}${Green} Modified the UEFI script... ${NOCOLOR} \n\n"
 
-echo "\EFI\ArchLinux\vmlinuz-$(hostname)-$kernel  root=PARTUUID=e79c9191-3302-4dc8-a62a-5cc22d266643  loglevel=3  systemd.show_status=true rw initrd=\EFI\ArchLinux\initramfs-$(hostname)-$kernel.img" | sudo tee  /boot/efi/EFI/archlinux.nsh
+echo "\EFI\ArchLinux\vmlinuz-$(hostname)-$kernel root=PARTUUID=9e3d2f9a-4846-3049-97fc-b5e5c61820ae  loglevel=3  systemd.show_status=true rw initrd=\EFI\ArchLinux\initramfs-$(hostname)-$kernel.img" | sudo tee  /boot/efi/EFI/archlinux.nsh
 
 exit 0
 
