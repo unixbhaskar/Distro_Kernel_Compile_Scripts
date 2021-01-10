@@ -83,9 +83,11 @@ sed -i '31i export KBUILD_BUILD_USER=Bhaskar' PKGBUILD
 
 sed -i 's/#make oldconfig/make olddefconfig/' PKGBUILD
 sed -i '61d' PKGBUILD
-sed -i '61i make V=1 ARCH=x86_64 -j4  bzImage modules htmlocs' PKGBUILD
+sed -i '61i make V=1 ARCH=x86_64 -j4  bzImage modules' PKGBUILD
 sed -i '62d' PKGBUILD 
-
+sed -i '169,186 s/^/#/' PKGBUILD
+sed -i '187i pkgname=("$pkgbase" "$pkgbase-headers")' PKGBUILD 
+sed -i '189d' PKGBUILD
 printf "As we have change the PKGBUILD file ,we need to generate the new ${Magenta}CHECKSUM the file .... ${NOCOLOR} \n\n\n"
 
 #makepkg -g
@@ -102,11 +104,11 @@ $TM "\t\n\n Elapsed Time : %E \n\n" makepkg -s
 printf "Install the generated ${PowderBlue}headers,${PowderBlue}kernel and ${PowderBlue}doc packages with pacman .. ${NOCOLOR} \n\n\n"
 
 
-sudo pacman -U  --noconfirm $(hostname)-$kernel-$kernel-1-x86_64.pkg.tar.xz
+sudo pacman -U  --noconfirm $(hostname)-$kernel-$kernel-1-x86_64.pkg.tar.zst
 
-sudo pacman -U --noconfirm $(hostname)-$kernel-headers-$kernel-1-x86_64.pkg.tar.xz
+sudo pacman -U --noconfirm $(hostname)-$kernel-headers-$kernel-1-x86_64.pkg.tar.zst
 
-sudo pacman -U  --noconfirm $(hostname)-$kernel-docs-$kernel-1-x86_64.pkg.tar.xz
+sudo pacman -U  --noconfirm $(hostname)-$kernel-docs-$kernel-1-x86_64.pkg.tar.zst
 
 
 printf "\n\n\n Done..now copy over the image to ${Yellow}EFI dir..${NOCOLOR} \n\n\n\n"
