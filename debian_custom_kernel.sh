@@ -55,7 +55,7 @@ tar -xJvf linux-$kernel.tar.xz
 
 cd linux-$kernel
 
-        printf "##################${Reverse}Configure the kernel ${NOCOLOR} ######## \n\n\n"
+        printf "\n\n##################${Reverse}Configure the kernel ${NOCOLOR} ######## \n\n\n"
 
 printf "\n\n${Bright}${LimeYellow}Make clean and make mrproper on it ${NOCLOR}......\n\n"
 
@@ -94,22 +94,22 @@ printf "\n\n\n ${Bright}${Green}Install the generated packages aka kernel,header
 
 cd ..
 
-dpkg -i linux-headers-* linux-image-*
+dpkg -i *.deb 
 
 
 printf "${Bright}${Cyan}Copy kernel,initrd to EFI directory ${NOCOLOR}.....\n\n\n"
 
 cd /boot
 
-cp -v /boot/vmlinuz-$kernel-debian $EFIBOOTDIR
-cp -v /boot/initrd.img-$kernel-debian $EFIBOOTDIR
+cp -v /boot/vmlinuz-$kernel $EFIBOOTDIR
+cp -v /boot/initrd.img-$kernel $EFIBOOTDIR
 
 
 printf "\n\n\n${Bright}${PowderBlue} Fix the boot entry ${NOCOLOR}...\n\n\n"
 
 echo "title Debian" > $EFIMENUENTRY
-echo "linux /EFI/debian/vmlinuz-$kernel-debian" >> $EFIMENUENTRY
-echo "initrd /EFI/debian/initrd.img-$kernel-debian" >> $EFIMENUENTRY
+echo "linux /EFI/debian/vmlinuz-$kernel" >> $EFIMENUENTRY
+echo "initrd /EFI/debian/initrd.img-$kernel" >> $EFIMENUENTRY
 echo "options root=PARTUUID=ad5ef658-ccc9-46a5-8363-107a8e5e7d15  loglevel=3  systemd.show_status=true ifname.net=0 rw" >> $EFIMENUENTRY
 
 printf "\n\n${Bright}${Green}Take a look at it ${NOCOLOR}...\n\n\n"
@@ -118,7 +118,7 @@ cat $EFIMENUENTRY
 
 printf "\n\n ${Bright}${Cyan} Fix the UEFI boot shell script ... ${NOCOLOR} \n\n"
 
-echo " \EFI\debian\vmlinuz-$kernel-debian root=PARTUUID=ad5ef658-ccc9-46a5-8363-107a8e5e7d15  loglevel=3  systemd.show_status=true rw initrd=\EFI\debian\initrd.img-$kernel-debian" > /boot/efi/EFI/debian.nsh
+echo " \EFI\debian\vmlinuz-$kernel root=PARTUUID=ad5ef658-ccc9-46a5-8363-107a8e5e7d15  loglevel=3  systemd.show_status=true rw initrd=\EFI\debian\initrd.img-$kernel" > /boot/efi/EFI/debian.nsh
 
 cat /boot/efi/EFI/debian.nsh
 
