@@ -84,6 +84,8 @@ make  clean && make mrproper
 
 cp /boot/config-$(uname -r) .config
 
+scripts/config --disable DEBUG_KERNEL .config
+
 make  ARCH=x86_64 olddefconfig
 
 
@@ -114,7 +116,7 @@ printf "${Bright}${LimeYEllow} Copying the build kernel to boot directory${NOCOL
 
 /usr/bin/dracut --hostonly --kver $kernel-Gentoo
 
-/usr/bin/notify-send --expire-time=2000 --urgency-critical "Kernel install and initramfs creation  done"
+/usr/bin/notify-send --expire-time=2000 --urgency=critical "Kernel install and initramfs creation  done"
 
 printf "\n\n ${Bright}${Yellow} Fixing the EFI boot entry by copying the kernel to ESP place ${NOCOLOR}...\n\n"
 
