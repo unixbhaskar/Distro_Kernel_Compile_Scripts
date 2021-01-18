@@ -53,6 +53,11 @@ cd linux/repos/core-x86_64/
 
 sudo zcat /proc/config.gz > config
 
+#Disable the kernel debug option for quick compile time 
+cd src/$kernel-arch1/
+scripts/config --disable DEBUG_KERNEL .config 
+cd ../../ 
+
 #sed -i 's/pkgbase=linux/#pkgbase=linux/' PKGBUILD
 
 sed -i "s/pkgbase=linux/pkgbase=$(hostname)-$(echo $kernel) /"  PKGBUILD
@@ -99,7 +104,7 @@ printf "\n\n\n Lets do the ${Bright}${Green}compiling now ${NOCOLOR} ....\n\n\n"
 
 $TM "\t\n\n Elapsed Time : %E \n\n" makepkg -s
 
-/usr/bin/notify-send -u critical 'Kernel building done'
+/usr/bin/notify-send --urgency=critical 'Kernel building done'
 
 printf "Install the generated ${PowderBlue}headers,${PowderBlue}kernel and ${PowderBlue}doc packages with pacman .. ${NOCOLOR} \n\n\n"
 
@@ -108,7 +113,7 @@ sudo pacman -U  --noconfirm $(hostname)-$kernel-$kernel-1-x86_64.pkg.tar.zst
 
 sudo pacman -U --noconfirm $(hostname)-$kernel-headers-$kernel-1-x86_64.pkg.tar.zst
 
-sudo pacman -U  --noconfirm $(hostname)-$kernel-docs-$kernel-1-x86_64.pkg.tar.zst
+#sudo pacman -U  --noconfirm $(hostname)-$kernel-docs-$kernel-1-x86_64.pkg.tar.zst
 
 
 printf "\n\n\n Done..now copy over the image to ${Yellow}EFI dir..${NOCOLOR} \n\n\n\n"
