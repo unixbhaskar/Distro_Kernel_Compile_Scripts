@@ -8,6 +8,7 @@ build_dir=/home/bhaskar/latest_kernel_build_`hostname`_`date '+%F'`
 get_kernel=/usr/local/bin/secure_kernel_tarball
 TM="/usr/bin/time -f"
 pkg_dir="/usr/src/packages/RPMS/x86_64"
+boot_dir="/boot"
 
 printf "${Reverse}Lets build the new kernel${NOCOLOR}  ..... \n\n"
 
@@ -117,7 +118,7 @@ rpm --addsign *.rpm
 rpm --checksig *.rpm
 
 printf "\n\n ${Bright}${Yellow} Fixing the EFI boot entry by copying the kernel to ESP place ${NOCOLOR}...\n\n"
-
+cd $boot_dir
 cp vmlinuz-$kernel-1-default-$(hostname) /boot/efi/EFI/Opensuse/
 cp initrd-$kernel-1-default-$(hostname) /boot/efi/EFI/Opensuse/
 
