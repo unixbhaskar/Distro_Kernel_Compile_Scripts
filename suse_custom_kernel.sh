@@ -113,8 +113,8 @@ printf "Installing the packages.....\n\n\n"
 
 cd $pkg_dir
 
-rpm -ivh --force *.rpm
 rpm --addsign *.rpm
+rpm -ivh --force *.rpm
 rpm --checksig *.rpm
 
 printf "\n\n ${Bright}${Yellow} Fixing the EFI boot entry by copying the kernel to ESP place ${NOCOLOR}...\n\n"
