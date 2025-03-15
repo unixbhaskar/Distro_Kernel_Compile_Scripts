@@ -1,150 +1,120 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-EFIBOOTPATH=/boot/efi/loader/entries
-source /home/bhaskar/colors.sh
-source /home/bhaskar/spinner.sh
+# Author: Bhaskar Chowdhury
+
+# License (GPL v2.0)
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+
+# Build a Gentoo kernel from the source code get_make
+
+get_make=$(command -v make)
+get_elapsed_time="/usr/bin/time -f"
+untar_it="tar -xJvf"
+existing_config_file="/boot/config-$(uname -r)"
+build_dir="/home/bhaskar/latest_kernel_build_$(hostname)_$(date '+%F')"
+get_it=$(command -v secure_kernel_tarball)
+NOTIFY=$(command -v notify-send)
 NOCOLOR="\033[0m"
-build_dir=/var/tmp/kernel/latest_kernel_build_`hostname`_`date '+%F'`
-get_kernel=/usr/local/bin/secure_kernel_tarball
-TM="/usr/bin/time -f"
+LOCAL_BIN="/usr/local/bin"
+dracut=$(command -v dracut)
+clang="CC=clang"
+make_llvm="LLVM=1"
+llvm_assm="LLVM_IAS=1"
 
-printf "${Reverse}Lets build the new kernel${NOCOLOR}  ..... \n\n"
-
-printf "Hostname: %s\nDate    : %s\nUptime  :%s\n\n"  "$(hostname -s)" "$(date)" "$(uptime)"
-
-printf " Check the latest stable kernel version from ${Bright}${Blue}kernel.org${NOCOLOR} \n\n"
-#kernel=`curl -sL https://www.kernel.org/finger_banner | grep '4.18' | awk -F: '{gsub(/ /,"", $0); print $2}'`
-kernel=$(curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.10)
-printf "${Bright}${Green}$kernel${NOCOLOR} \n"
-
-printf "\n Pre-flight check...basic build tools are in the system for kernel build...\n"
-
-ver_linux
+clear
 
 if [[ ! -d $build_dir ]];then
-   mkdir -p $build_dir
+	mkdir -p $build_dir
 fi
 
-cd $build_dir
+cd $build_dir || exit 1
 
-printf "Get the kernel from ${Bright}${Blue}kernel.org${NOCOLOR} and this for the ${Underline}*stable* kernel${NOCOLOR} \n\n\n"
+gentoo_kernel_build() {
 
+#Download the kernel and get into the download dir
 
-#wget -c https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-$kernel.tar.xz
+which_kernel
 
-#printf "Get the ${Bright}${LimeYellow}sign for the kernel${NOCOLOR} ...\n\n"
+eval ${get_it} ${kernel}
 
-#wget -c https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-$kernel.tar.sign
+#Untar it
+$untar_it linux-$kernel.tar.xz
 
-#printf "Get the ${Bright}${Cyan} asc file for verification ${NOCOLOR} ...\n\n"
+#Get into the kernel direcory
+cd linux-$kernel || exit 1
 
-#wget -c https://cdn.kernel.org/pub/linux/kernel/v4.x/sha256sums.asc
+#Clean the dir
+$get_make clean && $get_make mrproper
 
-eval ${get_kernel} ${kernel}
+#Copying existing/running kernel config
+#cp $existing_config_file .config
 
-printf "\n\n ${Bright}${Magenta}  Make sure we are in the right directory ${NOCOLOR} ...\n\n"
+zcat /proc/config.gz > .config
 
-pwd
+#Disable this option to shorten the compile time
+scripts/config --disable DEBUG_KERNEL
+grep DEBUG_KERNEL .config
 
+#Disable this option to shorten the compile time
+scripts/config --disable DEBUG_INFO
+grep DEBUG_INFO .config
 
-printf "${Bright}${Magenta} Decompress the downloaded kernel${NOCOLOR} ...\n\n\n"
+# Enable USB storage for external drive detection
+scripts/config --enable USB_STORAGE
 
-unxz linux-$kernel.tar.xz
+# Bunch of Bluetooth modules have to be enable for it to work
+scripts/config --enable BT_RFCOMM
+scripts/config --enable BT_HIDP 
+scripts/config --enable BT_HCIBTUSB
+scripts/config --enable BT_HCIUART 
 
+# Added the local hostname as appended to the built kernel 
+scripts/config --set-str LOCALVERSION "-Gentoo"
 
-#printf "${Bright}${Green} Lets check the kernel signing${NOCOLOR}...\n\n"
+#Make sure the flags symbols are set correctly with an updated value
+#$get_make  ARCH=x86_64 olddefconfig
+yes '' | make localmodconfig
 
-#gpg2 --verify linux-$kernel.tar.sign
+#Now lets build it..
 
-#sleep 3
-
-#gpg2 --verify sha256sums.asc
-
-#sleep 3
-
-
-printf "${Bright}${Cyan} Untar the kernel${NOCOLOR} ...\n\n"
-
-tar -xvf linux-$kernel.tar
-
-
-if [[ $? -eq 0 ]]; then
-printf "${Bright}${Green} Looks alright ..go ahead ${NOCOLOR} \n\n "
-else
-printf "${Bright}${Red}Nope missing tool ,abort! ${NOCOLOR} \n\n"
-fi
-
-printf "\n\n ${Bright}${Yellow} Get into the kernel tree and clean it ${NOCOLOR} ..\n\n\n"
-
-cd linux-$kernel
-
-/usr/bin/notify-send --expire-time=2000 --urgency=critical "The kernel building started"
-
-make  clean && make mrproper
-
-cp /boot/config-$(uname -r) .config
-
-scripts/config --disable DEBUG_KERNEL .config
-
-make  ARCH=x86_64 olddefconfig
-
-
-$TM "\t\n\n Elapsed Time : %E \n\n"  /usr/bin/make ARCH=x86_64 V=1 -j `getconf _NPROCESSORS_ONLN` LOCALVERSION=-`hostname` | /usr/bin/ts
+$get_elapsed_time "\t\n\n Elapsed Time : %E \n\n"  $get_make ARCH=x86_64 V=1 -j$(getconf _NPROCESSORS_ONLN) 
 
 
 if [ $? == 0 ]
 then
 
-printf "${Bright}${Green}Done${NOCOLOR} \n\n"
+$NOTIFY --urgency=critical "Kernel build done"
 
 else
 
-printf "${right}${Red}Error encountered${NOCOLOR} \n\n"
-
+$NOTIFY --urgency=critical "Kernel build failed"
+ exit 1
 fi
 
-printf "${Bright}${Yellow} Installing the modules${NOCOLOR} ...\n\n"
+printf "Installing the modules ...\n\n"
+
+$get_make  modules_install
+
+$NOTIFY --expire-time=2000 --urgency=critical "Modules install done"
+
+printf "Copying the build kernel to boot directory \n\n"
+
+$get_make install
+
+$dracut --hostonly --kver $kernel-Gentoo
 
 
-/usr/bin/make  modules_install |  /usr/bin/ts
-/usr/bin/notify-send --expire-time=2000 --urgency=critical "Modules install done"
-
-printf "${Bright}${LimeYEllow} Copying the build kernel to boot directory${NOCOLOR} \n\n"
-
-
-/usr/bin/make install
-
-/usr/bin/dracut --hostonly --kver $kernel-Gentoo
-
-/usr/bin/notify-send --expire-time=2000 --urgency=critical "Kernel install and initramfs creation  done"
-
-printf "\n\n ${Bright}${Yellow} Fixing the EFI boot entry by copying the kernel to ESP place ${NOCOLOR}...\n\n"
-
-cp /boot/vmlinuz-$kernel-`hostname` /boot/efi/EFI/Gentoo/
-cp /boot/initramfs-$kernel-Gentoo.img /boot/efi/EFI/Gentoo/
-
-/usr/bin/notify-send --expire-time=2000 --urgency=critical "Copied linux and initrd in EFI directory"
-
->$EFIBOOTPATH/Gentoo.conf
-
-echo "title Gentoo" > $EFIBOOTPATH/Gentoo.conf
-echo "linux /EFI/Gentoo/vmlinuz-$kernel-`hostname`" >> $EFIBOOTPATH/Gentoo.conf
-echo " initrd /EFI/Gentoo/initramfs-$kernel-Gentoo.img" >> $EFIBOOTPATH/Gentoo.conf
-echo "options root=PARTUUID=f61e6cec-134e-5e4d-8486-08c4bd235fd3 net.ifnames=0 rw" >> $EFIBOOTPATH/Gentoo.conf
-
-cat $EFIBOOTPATH/Gentoo.conf
-
-/usr/bin/notify-send --expire-time=2000 --urgency=critical "Modified the boot entry"
-
-printf "\n\n ${Bright}${Cyan} Fix the UEFI boot shell script... ${NOCOLOR} \n\n"
-
-echo "\EFI\Gentoo\vmlinuz-$kernel-Gentoo --initrd \EFI/Gentoo\initramfs-$kernel-Gentoo.img root=PARTUUID=f61e6cec-134e-5e4d-8486-08c4bd235fd3 rw" > /boot/efi/EFI/gentoo.nsh
-
-
-cat /boot/efi/EFI/gentoo.nsh
-/usr/bin/notify-send --expire-time=2000 --urgency=critical "Fix the nsh script too"
-
-printf "\n\n ${Bright}${Cyan}Lets clean up the build directory ${NOCOLOR} .....\n\n\n"
+printf "\n\n Lets clean up the build directory  .....\n\n\n"
 
 cd ..
 
@@ -152,5 +122,23 @@ cd ..
 
 spinner "$!" "Cleaning...wait.."
 
+$NOTIFY --expire-time=5000 "Kernel update process done"
+}
 
-exit 0
+which_kernel() {
+printf "\n\n Which kernel would be your base? Stable or Mainline or Longterm? [S/M/L]: %s"
+read response
+
+if [[ $response == "S" ]];then
+#Get the stable kernel from kernel.org
+kernel=$(curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 6.13)
+elif [[ $response == "M" ]];then
+#Get the mainline kernel from kernel.org
+kernel=$(curl -s https://www.kernel.org/ | grep -A1 'mainline:' | grep -oP '(?<=strong>).*(?=</strong.*)')
+elif [[ $response == "L" ]];then
+#Get the longterm kernel from kernel.org
+kernel=$(curl -s https://www.kernel.org/ | grep -A1 'longterm:' | grep -oP '(?<=strong>).*(?=</strong.*)')
+fi
+}
+
+gentoo_kernel_build
