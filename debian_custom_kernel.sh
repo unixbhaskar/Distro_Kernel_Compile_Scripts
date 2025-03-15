@@ -1,128 +1,107 @@
-#!/bin/bash
-source /home/bhaskar/colors.sh
-NOCOLOR="\033[0m"
-#DT=`date '+%d%m%Y'`
-BASEPATH=/home/bhaskar/latest_kernel_build_$(hostname)_$(date '+%F')
-EFIBOOTDIR=/boot/efi/EFI/debian/
-EFIMENUENTRY=/boot/efi/loader/entries/Debian.conf
-get_kernel=/usr/local/bin/secure_kernel_tarball
+#!/usr/bin/env bash
+# This script will build debian kernel package from the upstream stable kernel
 
-printf "\n\n ${Reverse}################ Building Custom Kernel ${NOCOLOR}################ \n\n"
+get_elapsed_time="/usr/bin/time -f"
+build_dir=/home/bhaskar/git-linux/debian_kernel_build
+existing_config_file="/boot/config-$(uname -r)"
+custom_kernel_package_holder=/home/bhaskar/git-linux/
 
+debian_kernel_build() {
 
-mkdir -p $BASEPATH
+# Check if build dir exists, if not then pull and build
 
-printf "${Bright}${White}Created the ${BASEPATH} ${NOCOLOR} \n\n"
+if [ ! -d "$build_dir" ];then
+	echo Gosh! It will take hell lot of time to clone the repo ...take a break ...
+	echo
+	$get_elapsed_time "\n\n\tTime Elapsed: %E\n\n" git clone git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git "$build_dir"
+ else
+	 echo Dir exists!! Getting into the git repo ...
 
-cd $BASEPATH
+         cd $build_dir || exit 1
+fi
 
-printf "Hostname: %s\nDate    : %s\nUptime  :%s\n\n"  "$(hostname -s)" "$(date)" "$(uptime)"
+echo Cleaning previous stale stuff and pull new stuffs in
 
-printf " Check the latest stable kernel version from ${Bright}${Blue}kernel.org${NOCOLOR} \n\n"
-#kernel=`curl -sL https://www.kernel.org/finger_banner | grep '4.18' | awk -F: '{gsub(/ /,"", $0); print $2}'`
-kernel=`curl -s https://www.kernel.org/ | grep -A1 'stable' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.10`
-printf "${Bright}${Green}$kernel${NOCOLOR}\n\n"
+ cd "$build_dir" || exit 1
 
+ git reset --hard
 
-printf "\n\n${Bright}${Magenta} Make sure we are in the right directory ${NOCOLOR}...\n\n"
+ git clean -dfx
 
+ git pull
 
-printf "${Reverse}$PWD ${NOCOLOR} \n\n"
+# echo Getting the build dependencies for kernel build :
+# echo
 
-printf "Get the kernel from ${Bright}${Blue}kernel.org${NOCOLOR} and this for the ${Underline}*stable* kernel${NOCOLOR} \n\n\n"
+# apt install devscripts
+# /usr/bin/mk-build-deps
 
-
-#wget -c https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-$kernel.tar.xz
-
-#printf "Get the ${Bright}${LimeYellow}sign for the kernel${NOCOLOR} ...\n\n"
-
-#wget -c https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-$kernel.tar.sign
-
-#printf "Get the ${Bright}${Cyan} asc file for verification ${NOCOLOR} ...\n\n"
-
-#wget -c https://cdn.kernel.org/pub/linux/kernel/v4.x/sha256sums.asc
-
-eval ${get_kernel} ${kernel}
-
-printf "${Bright}${LimeYellow}Decompress the kernel source ${NOCOLOR}..\n\n"
-
-tar -xJvf linux-$kernel.tar.xz
-
-#printf "${Bright}${Magenta}Verify the GPG signature on the kernel file${NOCOLOR}...\n\n"
-
-#gpg2 --verify linux-$kernel.tar.sign
-#gpg2 --verify sha256sums.asc
-
-cd linux-$kernel
-
-        printf "\n\n##################${Reverse}Configure the kernel ${NOCOLOR} ######## \n\n\n"
-
-printf "\n\n${Bright}${LimeYellow}Make clean and make mrproper on it ${NOCLOR}......\n\n"
-
+#Clean the dir
 make clean && make mrproper
 
+#Copying existing/running kernel config
+cp $existing_config_file .config
+ls -al .config
 
-printf "${Bright}${PowderBlue}Create a .config file,copying over the existing one ${NOCOLOR}....\n\n"
+#Disable this option to shorten the compile time
+scripts/config --disable DEBUG_KERNEL
+grep DEBUG_KERNEL .config
 
-cp -v /boot/config-`uname -r` .config
+#Disable this option to shorten the compile time
+scripts/config --disable DEBUG_INFO
+grep DEBUG_INFO .config
 
+# Set local hostname added to the kernel name
+scripts/config --set-str LOCALVERSION "-$(hostname)"
 
-
-printf "${Bright}${Red}Taking away faulty option for custom kernel build${NOCOLOR}..\n\n"
-
+#This is needed ,otherwise it won't allow you to build
 scripts/config --disable system_trusted_keys
-
 grep CONFIG_SYSTEM_TRUSTED_KEYS .config
 
+# Make config with all the currently loaded modules
+ yes '' | make localmodconfig
 
-printf  "\n${Yellow} Disabling DEBUG INFO${NOCOLOR} . . .\n\n"
+#Make sure the flags symbols are set correctly with an updated value
+# make  ARCH=x86_64 olddefconfig
 
-scripts/config --disable DEBUG_INFO
-
-printf "${Green}Done${NOCOLOR}\n\n"
-
-printf "${Bright}${Blue}Run make olddefconfig on it ${NOCOLOR}....\n\n"
-
-make olddefconfig
+# Now build it
+$get_elapsed_time "\n\n\tTime Elapsed: %E\n\n" make ARCH=x86_64 V=1 -j$(getconf _NPROCESSORS_ONLN) deb-pkg
 
 
-printf "${Bright}${Cyan}######################### Lets build the kernel #####################################${NOCOLOR}....\n\n\n"
+ printf "\n\n\n Install the generated packages aka kernel,headers,modules et al \n\n\n"
 
-/usr/bin/time -f "\n\n\tTime Elapsed: %E\n\n" make -j `getconf _NPROCESSORS_ONLN` deb-pkg
+ cd ..
 
-printf "\n\n\n ${Bright}${Green}Install the generated packages aka kernel,headers,modules et al ${NOCOLOR}\n\n\n"
+ dpkg -i *.deb
+ 
+# Scanning the freshly created packages  
 
-cd ..
+printf "\n\n\n\n Now collecting the packages in a file to feed the package management system\n\n\n"
 
-dpkg -i *.deb 
+>Debian_Custom_Kernel_Packages
+
+dpkg-scanpackages "$custom_kernel_package_holder" > Debian_Custom_Kernel_Packages
+
+# Make the package management system aware of the packages 
+
+ printf "\n\n\n Merging with the local package management system \n\n\n"
+ dpkg --merge-avail Debian_Custom_Kernel_Packages 
 
 
-printf "${Bright}${Cyan}Copy kernel,initrd to EFI directory ${NOCOLOR}.....\n\n\n"
+# if [ $? -eq 0 ];then
 
-cd /boot
+#      find /boot -maxdepth 1 -name "vmlinuz-*" -type f -ls
 
-cp -v /boot/vmlinuz-$kernel $EFIBOOTDIR
-cp -v /boot/initrd.img-$kernel $EFIBOOTDIR
+#      printf "\nGive the kernel number for initramfs generation: %s"
+#      read -r ramfs
+
+#      /usr/bin/dracut --hostonly --kver "$ramfs" 
+
+#     echo "Kernel update process done"
+# else
+# 	echo "Nope, the package install have trouble."
+# fi
 
 
-printf "\n\n\n${Bright}${PowderBlue} Fix the boot entry ${NOCOLOR}...\n\n\n"
-
-echo "title Debian" > $EFIMENUENTRY
-echo "linux /EFI/debian/vmlinuz-$kernel" >> $EFIMENUENTRY
-echo "initrd /EFI/debian/initrd.img-$kernel" >> $EFIMENUENTRY
-echo "options root=PARTUUID=ad5ef658-ccc9-46a5-8363-107a8e5e7d15  loglevel=3  systemd.show_status=true ifname.net=0 rw" >> $EFIMENUENTRY
-
-printf "\n\n${Bright}${Green}Take a look at it ${NOCOLOR}...\n\n\n"
-
-cat $EFIMENUENTRY
-
-printf "\n\n ${Bright}${Cyan} Fix the UEFI boot shell script ... ${NOCOLOR} \n\n"
-
-echo " \EFI\debian\vmlinuz-$kernel root=PARTUUID=ad5ef658-ccc9-46a5-8363-107a8e5e7d15  loglevel=3  systemd.show_status=true rw initrd=\EFI\debian\initrd.img-$kernel" > /boot/efi/EFI/debian.nsh
-
-cat /boot/efi/EFI/debian.nsh
-
-printf "\n\n ${Bright}${LimeYellow} Removing the build directory...wait .. ${NOCOLOR} \n\n"
-
-rm -rf $BASEPATH
-exit 0
+}
+debian_kernel_build
