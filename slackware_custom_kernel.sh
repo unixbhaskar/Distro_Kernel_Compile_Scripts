@@ -1,209 +1,196 @@
 #!/usr/bin/env bash
 
-EFIBOOTPATH=/boot/efi/loader/entries/
 
-source $HOME/colors.sh
-source $HOME/spinner.sh
+get_make=$(command -v make)
+get_elapsed_time="/usr/bin/time -f"
+untar_it="tar -xJvf"
+existing_config_file="/boot/config-$(uname -r)"
+build_dir="/home/bhaskar/latest_kernel_build_$(hostname)_$(date '+%F')"
+get_it=$(command -v secure_kernel_tarball)
+EFIMENUENTRY="/boot/efi/loader/entries"
+EFIBOOTDIR="/boot/efi/"
+NOTIFY=$(command -v notify-send)
 NOCOLOR="\033[0m"
+LOCAL_BIN="/usr/local/bin"
+dracut=$(command -v dracut)
+clang="CC=clang"
+make_llvm="LLVM=1"
+llvm_assm="LLVM_IAS=1"
+arch_build_dir=/home/bhaskar/archlinux_custom_kernel_build
 
-build_dir="$HOME/latest_kernel_build_$(hostname)_$(date '+%F')"
+if [[ $UID -ne 0 ]];then
 
-get_kernel=/usr/local/bin/secure_kernel_tarball
+	echo You need superuser privilage to run this script.
+	exit 1
+fi
 
+source /home/bhaskar/spinner.sh
+clear
 
-printf "\t\t\t\t\t ${Reverse}Lets build the new kernel${NOCOLOR} ..\n\n\n"
-
-
-printf "Hostname: %s\nDate    : %s\nUptime  :%s\n\n"  "$(hostname -s)" "$(date)" "$(uptime)"
-
-
-
-printf "\n\n Check the latest stable kernel version from ${Bright}${Blue}kernel.org${NOCOLOR} \n\n"
-
-#kernel=`curl -sL https://www.kernel.org/finger_banner | grep '4.18' | awk -F: '{gsub(/ /,"", $0); print $2}'`
-kernel=`curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 5.3`
-printf "${Bright}${Green}$kernel${NOCOLOR} \n\n"
+cat << "EOF"
+  _  __                    _
+ | |/ /___ _ __ _ __   ___| |
+ | ' // _ \ '__| '_ \ / _ \ |
+ | . \  __/ |  | | | |  __/ |
+ |_|\_\___|_|  |_| |_|\___|_|_ _       _   _
+  / ___|___  _ __ ___  _ __ (_) | __ _| |_(_) ___  _ __
+ | |   / _ \| '_ ` _ \| '_ \| | |/ _` | __| |/ _ \| '_ \
+ | |__| (_) | | | | | | |_) | | | (_| | |_| | (_) | | | |
+  \____\___/|_| |_| |_| .__/|_|_|\__,_|\__|_|\___/|_| |_|
+                      |_|
+EOF
 
 if [[ ! -d $build_dir ]];then
-   mkdir -p $build_dir
-fi   
+	mkdir -p $build_dir
+fi
+
 cd $build_dir
 
-pwd
-
-printf "Get the kernel from ${Bright}${Blue}kernel.org${NOCOLOR} and this for the *stable* kernel \n\n"
-
-
-#wget -c https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-$kernel.tar.xz
-
-eval ${get_kernel} ${kernel}
-
-if [[ $? == 0 ]];then
-   
-   printf "${Bright}${Green}SUCCESS${NOCOLOR} \n\n"
-else
-     printf "${Bright}${Red}FAIL${NOCOLOR} \n\n"
-fi     
-
-#printf "${Bright}${Yellow}Get the sign for the kernel${NOCOLOR} ...\n\n"
-
-#wget -c https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-$kernel.tar.sign
-
-#if [[ $? == 0 ]] ;then
-  
-#     printf "${Bright}${Green}SUCESS${NOCOLOR}\n\n"
-#else
-#    printf "${Bright}${Red}FAIL${NOCOLOR} \n\n"
-#fi    
-
-#printf "Get the ${Bright}${Cyan} asc file for verification ${NOCOLOR} ...\n\n"
-
-#wget -c https://cdn.kernel.org/pub/linux/kernel/v4.x/sha256sums.asc
+#if [[ $get_it == "" ]];then
+#	curl  -o $LOCAL_BIN/secure_kernel_tarball https://git.kernel.org/pub/scm/linux/kernel/git/mricon/korg-helpers.git/plain/get-verified-tarball
+#	chmod +x $LOCAL_BIN/secure_kernel_tarball
+#	sed -i '16d'  $LOCAL_BIN/secure_kernel_tarball
+#	sed -i "16i TARGETDIR=$build_dir" $LOCAL_BIN/secure_kernel_tarball
+#fi
 
 
-printf "${Bright}${Cyan} Decompress the downloaded kernel${NOCOLOR} ..."
-
-unxz linux-$kernel.tar.xz
-
-if [[ $? == 0 ]] ;then
-  
-     printf "${Bright}${Green}SUCESS${NOCOLOR}\n\n"
-else
-    printf "${Bright}${Red}FAIL${NOCOLOR}\n\n"
-fi    
 
 
-#printf "${Bright}${PowerBlue} Lets check the kernel signing${NOCOLOR}...\n\n"
+slackware_kernel_build() {
 
-#gpg2 --verify linux-$kernel.tar.sign
+#Download the kernel
 
-#sleep 5
+which_kernel
 
-#gpg2 --verify sha256sums.asc
+eval ${get_it} ${kernel}
 
-#sleep 3
+#Untar it
+$untar_it linux-$kernel.tar.xz
 
-#if [[ $? == 0 ]] ;then
-  
-#     printf "${Bright}${Green}SUCESS${NOCOLOR}\n\n"
-#else
-#    printf "${Bright}${Red}FAIL${NOCOLOR}\n\n"
-#fi    
-
-printf "${Bright}${Yellow} Untar the kernel${NOCOLOR} ..."
-
-tar -xvf linux-$kernel.tar
-
-
-printf "${Bright}${Magenta} Get into the kernel tree and clean it${NOCOLOR} ..\n\n"
-
+#Get into the kernel direcory
 cd linux-$kernel
 
-make clean && make mrproper
+#Check for required tools to build kernel
+scripts/ver_linux
+
+#Copying the existing system running kernel config
+cp $existing_config_file .config
+
+# Take away the DEBUG options for faster compile
+scripts/config --disable DEBUG_KERNEL
+grep DEBUG_KERNEL .config
+
+#Similar vein like above, for faster compile time
+scripts/config --disable DEBUG_INFO
+grep DEBUG_INFO .config
+
+#Make old kernel config set as well
+#$get_make olddefconfig
+
+yes '' | make localmodconfig
+
+printf "Then make it ...\n\n"
+
+$get_elapsed_time "\t\n\n Elapsed time: %E\n\n" $get_make V=1 ARCH=x86_64 -j$(getconf _NPROCESSORS_ONLN) LOCALVERSION=-$(hostname)
 
 
-printf "${Bright}${PowderBlue} Now get the running kernel conf and build .config${NOCOLOR} \n\n"
+$NOTIFY --urgency=critical 'Kernel compilation done'
 
-zcat /proc/config.gz > .config
+if [[ $? == 0 ]];then
 
-printf "${Bright}${White}Check the timestamp on the file for the sanity${NOCOLOR} \n\n"
+printf "Done\n\n"
 
-ls -al .config
+else
 
-printf "${Bright}${Cyan} Lets do the config ,run make olddefconfig${NOCOLOR}\n\n"
-make olddefconfig
-
-printf "${Bright}${Green}Then make it${NOCOLOR} ...\n\n"
-
-/usr/bin/time -f "\t\n\n Elapsed time: %E\n\n" make -j `getconf _NPROCESSORS_ONLN` LOCALVERSION=-`hostname`
-
-
-if [ $? == 0 ];then
-
-printf "${Bright}${Green}Done${NOCOLOR}\n\n"
-
-else 
-
-printf "${Bright}${Red}Error encountered${NOCOLOR}\n\n"
+printf "Error encountered\n\n"
 
 fi
 
-printf "${Bright}${PowderBlue}Installing the modules${NOCOLOR} ..\n\n"
+printf "Installing the modules ..\n\n"
 
-make modules_install
+$get_make modules_install
 
-printf "\n\n ${Bright}${Magenta}Copying the build kernel to boot directory${NOCOLOR}\n\n"
+$NOTIFY --urgency=critical 'Modules install done'
 
-cp arch/x86/boot/bzImage /boot/vmlinuz-$kernel
+printf "\n\n Copying the build kernel to boot directory\n\n"
 
-printf "${Bright}${Cyan} Cross check the item${NOCOLOR} ...\n\n"
+cp arch/x86/boot/bzImage /boot/vmlinuz-$kernel-$(hostname)
+
+$NOTIFY --urgency=critical 'Kernel install to local boot dir'
+
+
+printf "Cross check the item ...\n\n"
 
 ls -al /boot/vmlinuz-*
-printf "\n\n ${Bright}${Yellow}Copy the System.map file to /boot dir${NOCOLOR}\n\n"
 
-cp System.map /boot/System.map-$kernel
+printf "\n\n Copy the System.map file to /boot dir\n\n"
 
-printf "${Bright}${LimeYellow} Copying the .config file to /boot dir${NOCOLOR} \n\n"
+cp System.map /boot/System.map-$kernel-$(hostname)
 
-cp .config /boot/config-$kernel
+printf "Copying the .config file to /boot dir$ \n\n"
 
-printf "${Bright}${Yellow} Make sure we are in right directory ${NOCOLOR} ..\n\n"
-cd /boot
+cp .config /boot/config-$kernel-$(hostname)
+
+printf "Make sure we are in right directory  ..\n\n"
+boot="/boot"
+cd "$boot"
 pwd
 
-printf "${Bright}${Cyan} Lets relink System.map,config,huge,generic and normal against the new kernel! ${NOCOLOR}... \n\n"
+printf "Lets relink System.map,config,huge,generic and normal against the new kernel! ... \n\n"
 unlink System.map
-ln -s Systeme.map-$kernel  System.map  
+ln -s Systeme.map-$kernel-$(hostname)  System.map
 
 unlink config
-ln -s config-$kernel config
+ln -s config-$kernel-$(hostname) config
 
 unlink vmlinuz
-ln -s vmlinuz-$kernel vmlinuz 
+ln -s vmlinuz-$kernel-$(hostname) vmlinuz
 
 unlink vmlinuz-huge
-ln -s vmlinuz-$kernel vmlinuz-huge
+ln -s vmlinuz-$kernel-$(hostname) vmlinuz-huge
 
 unlink vmlinuz-generic
-ln -s vmlinuz-$kernel vmlinuz-generic
+ln -s vmlinuz-$kernel-$(hostname) vmlinuz-generic
 
 find . -maxdepth 1 -type l -ls
 
-printf "${Bright}${Green}Done and looks good! ${NOCOLOR} \n\n"
+
+printf "Copying the image to EFI directory ....\n\n"
+
+cp -v /boot/vmlinuz-$kernel-$(hostname) $EFIBOOTDIR/
+
+ls -al /boot/efi/*
+
+ $NOTIFY --urgency=critical 'Copied kernel to UEFI boot dir'
 
 
-printf "${Bright}${Yellow} Copying the image ot EFI directory${NOCOLOR} ....\n\n"
 
-ln -s /boot/vmlinuz-$kernel /boot/vmlinuz-$kernel-$(hostname)
-cp -v /boot/vmlinuz-$kernel-$(hostname) /boot/efi/EFI/slackware/
-
-ls -al /boot/efi/EFI/slackware/*
-
-printf "\n\n ${Bright}${PowderBlue} Fixing the menu entry of the loader ${NOCOLOR}....\n\n\n"
-
->$EFIBOOTPATH/Slackware.conf
-
-echo "title Slackware" > $EFIBOOTPATH/Slackware.conf 
-echo "linux /EFI/slackware/vmlinuz-$kernel-$(hostname)" >> $EFIBOOTPATH/Slackware.conf
-echo "options root=PARTUUID=c186d095-432d-454c-96d4-daf54248d60b rw" >> $EFIBOOTPATH/Slackware.conf
-
-
-printf "${Bright}${LimeYellow} Let see the entry to confirmation ${NOCOLOR}...\n\n\n"
-
-cat $EFIBOOTPATH/Slackware.conf
-
-
-printf "\n\n ${Bright}${Cyan} Fix the UEFI boot shell script... ${NOCOLOR}..\n\n\n"
-
-echo "\EFI\slackware\vmlinuz-$kernel-$(hostname) root=PARTUUID=c186d095-432d-454c-96d4-daf54248d60b rw" > /boot/efi/EFI/slackware.nsh
-
-cat /boot/efi/EFI/slackware.nsh
-
-
-printf " ${Bright}${Magenta} Cleaning up the build directory ${NOCOLOR} .....\n\n"
+printf "Cleaning up the build directory .....\n\n"
 
 (rm -rf $build_dir) &
 
 spinner "$!" "Cleaning up...wait"
 
-exit 0
+$NOTIFY --urgency=critical 'Kernel Update finished'
+
+
+}
+
+
+which_kernel() {
+printf "\n\n Which kernel would be your base? Stable or Mainline or Longterm? [S/M/L]: %s"
+read response
+
+if [[ $response == "S" ]];then
+#Get the stable kernel from kernel.org
+kernel=$(curl -s https://www.kernel.org/ | grep -A1 'stable:' | grep -oP '(?<=strong>).*(?=</strong.*)' | grep 6.7)
+elif [[ $response == "M" ]];then
+#Get the mainline kernel from kernel.org
+kernel=$(curl -s https://www.kernel.org/ | grep -A1 'mainline:' | grep -oP '(?<=strong>).*(?=</strong.*)')
+elif [[ $response == "L" ]];then
+#Get the longterm kernel from kernel.org
+kernel=$(curl -s https://www.kernel.org/ | grep -A1 'longterm:' | grep -oP '(?<=strong>).*(?=</strong.*)')
+fi
+}
+
+slackware_kernel_build
